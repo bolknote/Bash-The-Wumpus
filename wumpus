@@ -1,0 +1,170 @@
+#!/bin/bash
+# https://www.atariarchives.org/bcc1/showpage.php?page=250
+
+ROWS=20
+COLS=3
+NUM_PITS=2
+NUM_BATS=2
+
+ROOMS=(\
+	2 5 8 1 3 10 2 4 12 3 5 14 1 4 6 5 7 15 6 8 17 1 7 9 8 10 18 2 9 11 10 12 19 \
+	3 11 13 12 14 20 4 13 15 6 14 16 15 17 20 7 16 18 9 17 19 11 18 20 13 16 19 \
+)
+
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
+# generating a maze of directories by linking them with symlinks
+generate_rooms() {
+	for ((i=1; i<=$ROWS; i++)); do
+		mkdir -p "cave/$i"
+
+		for ((j = 0; j < $COLS; j++)); do
+			offset=$((i * $COLS - $COLS + j))
+
+			ln -s "../${ROOMS[$offset]}" "cave/$i/${ROOMS[$offset]}"
+		done
+	done
+}
+
+# returns a random number of an empty room
+random_empty_rooms() {
+	local number
+
+	while true; do
+		number=$((RANDOM % 20 + 1))
+		find "cave/$number" -type f | grep -q . || break
+	done
+
+	return $number
+}
+
+# puts hazard in a random room
+generate_hazards() {
+	local num="$1"
+	local haz="$2"
+
+	for ((i=0; i<$num; i++)); do
+	 	random_empty_rooms
+	 	local filename="cave/$?/$haz"
+	 	touch "$filename" && chmod +x "$filename"
+	done
+}
+
+main() {
+	cd "$SCRIPT_DIR"
+	[ -d cave ] && rm -r cave
+
+	generate_rooms
+
+	generate_hazards $NUM_BATS bat
+	generate_hazards $NUM_PITS pit
+	generate_hazards 1 wumpus
+
+	# puts the player in a random room
+	random_empty_rooms
+	cd "cave/$?"
+
+	/bin/bash --rcfile <(awk '/subshell$/{p=1}p{print}' "$SCRIPT_DIR/${BASH_SOURCE[0]}")
+}
+
+main
+exit
+
+# rcfile for subshell
+
+NUM_ARROWS=5
+
+end() {
+	echo "$1"
+	exit
+}
+
+on_before_command() {
+	local cmd=($BASH_COMMAND)
+
+	if [ "${cmd[0]}" = cd ]; then
+		cd "${cmd[1]}" &> /dev/null
+
+		if [ $? -eq 0 ]; then
+			export HOME="$(/bin/pwd)"
+			local n
+
+			while read n; do
+				case "$n" in
+					*bat) ;;
+					*wumpus) end 'Wumpus got you!' ;;
+					*pit) end 'Yyyiiieeee... Feel in pit' ;;
+				esac
+			done < <(/bin/ls -1)
+
+			cd - &> /dev/null
+		fi
+	fi
+}
+
+prompt() {
+	local hazs=()
+	local n
+
+	while read n; do
+		case "$n" in
+			*bat) hazs+=(noise);;
+			*pit) hazs+=(draft);;
+			*wumpus) hazs+=(smell);;
+		esac
+	done < <(/usr/bin/find -L . -maxdepth 2 -type f | /usr/bin/awk -F/ '!v[$NF]++{print}')
+
+	printf "%s " $(/usr/bin/basename $(/bin/pwd))
+	if [ ${#hazs[@]} -gt 0 ]; then
+		echo -n "(${hazs[@]})" | /usr/bin/sed 's/ /, /g'
+	fi
+
+	echo '> '
+}
+
+rm() {
+	local path='.'
+	local folder
+	local random_room
+	local player_room=$(/usr/bin/basename "$(/bin/pwd)")
+
+	if [ $NUM_ARROWS -gt 0 ]; then
+		let 'NUM_ARROWS--'
+
+		for folder in "${@:0:5}"; do
+			if [ $player_room -eq $folder ]; then
+				end 'Ouch! Arrow got you!'
+			fi
+
+			path="$path/$folder"
+
+			if [ -d "$path" ]; then
+				/usr/bin/find "$path/" -type f -not -name pit -delete -print |
+				/usr/bin/grep -Fq wumpus && end 'Aha! You go the Wumpus!'
+			else
+				random_room=$((RANDOM % 20 + 1))
+
+				if [ $player_room -eq $random_room ]; then
+					end 'Ouch! Arrow got you!'
+				fi
+			fi
+		done
+	else
+		end 'The arrows are out, Wumpus got you!'
+	fi
+}
+
+set -o noglob
+
+bind '"\t":'
+
+export PS1="\$(prompt)"
+export PS2=
+export PATH=
+
+alias ls='/bin/ls --color #'
+alias pwd='/usr/bin/basename "$(/bin/pwd)"'
+alias alias=''
+alias set=''
+
+trap on_before_command DEBUG
