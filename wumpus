@@ -249,6 +249,7 @@ bind '"\t":'
 export PS1="\$(prompt)"
 export PS2=
 export PATH=
+export LSCOLORS=cacacacacacacacacacacaca
 
 alias ls='/bin/ls --color #'
 alias pwd='/usr/bin/basename "$(/bin/realpath)"'
