@@ -118,7 +118,7 @@ WHAT A DODECAHEDRON IS, ASK SOMEONE)
 
 HELP
 
-	/bin/bash --rcfile <(awk '/subshell$/{p=1}p{print}' "$SCRIPT_DIR/${BASH_SOURCE[0]}")
+	/bin/bash --rcfile <(/usr/bin/awk '/subshell$/{p=1}p{print}' "$SCRIPT_DIR/${BASH_SOURCE[0]}")
 	trap on_exit EXIT
 }
 
