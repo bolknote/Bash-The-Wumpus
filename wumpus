@@ -69,7 +69,7 @@ main() {
 	cd "cave/$?"
 
 	/bin/bash --rcfile <(awk '/subshell$/{p=1}p{print}' "$SCRIPT_DIR/${BASH_SOURCE[0]}")
-	trap on_exit EXIT
+	# trap on_exit EXIT
 }
 
 main
@@ -105,7 +105,7 @@ prompt() {
 }
 
 bat() {
-	echo 'SUPER BAT SNATCH! ELSEWHEREVILLE FOR YOU!'
+	echo 'ZAP--SUPER BAT SNATCH! ELSEWHEREVILLE FOR YOU!'
 
 	local path="$(/usr/bin/dirname "$(/bin/realpath)")"
 	local except=( $(/usr/bin/find "$path" -type f | /usr/bin/awk -F/ '{print$(NF-1)}') )
@@ -129,7 +129,7 @@ cd() {
 			while read n; do
 				case "$n" in
 					*BAT) bat ;;
-					*WUMPUS) end 'WUMPUS GOT YOU!' ;;
+					*WUMPUS) end '... OOPS! BUMPED A WUMPUS!' ;;
 					*PIT) end 'YYYIIIEEEE... FEEL IN PIT' ;;
 				esac
 			done < <(/bin/ls -1)
@@ -162,7 +162,7 @@ rm() {
 
 			if [ -d "$path" ]; then
 				/usr/bin/find "$path/" -type f -not -name PIT -delete -print |
-				/usr/bin/grep -Fq WUMPUS && end 'AHA! YOU GO THE WUMPUS!'
+				/usr/bin/grep -Fq WUMPUS && end 'AHA! YOU GOT THE WUMPUS!'
 			else
 				random_room=$((RANDOM % 20 + 1))
 
@@ -173,6 +173,22 @@ rm() {
 		done
 	else
 		end 'THE ARROWS ARE OUT, WUMPUS GOT YOU!'
+	fi
+
+	# Wumpus move
+	local w=$((RANDOM % 100 + 1))
+	if [ "$w" -le 75 ]; then
+		local path="$(/usr/bin/dirname "$(/bin/realpath)")"
+		while true; do
+			local number=$((RANDOM % 20 + 1))
+			[[ ! -f "$path/$number/BAT" && ! -f "$path/$number/PIT" ]] && break
+		done
+
+		if [ "$player_room" -eq "$number" ]; then
+			end 'TSK TSK TSK- WUMPUS GOT YOU!'
+		fi
+
+		/bin/mv "$(/usr/bin/find "$path" -name WUMPUS)" "$path/$number/"
 	fi
 }
 
