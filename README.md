@@ -1,7 +1,7 @@
 # Bash The Wumpus
 #### This is a remake of the classic 1970s text adventure, but on a file system. Written in bash.
 
-<img width="454" alt="screenshot" src="https://github.com/user-attachments/assets/6e057f46-79d8-4bc5-a9be-7668f1d0639b">
+<img width="454" alt="screenshot" height="298" src="https://github.com/user-attachments/assets/6e057f46-79d8-4bc5-a9be-7668f1d0639b">
 
 The screenshot shows a situation where I shot into the wrong room, missing the one where the Wumpus was sleeping. It woke up and got me.
 
