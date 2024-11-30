@@ -125,7 +125,7 @@ HELP
 main
 exit
 
-# rcfile for subshell (don't remove this comment)
+# (don't modify this comment) rcfile for subshell
 
 NUM_ARROWS=5
 
