@@ -21,13 +21,13 @@ generate_rooms() {
 		for ((j = 0; j < $COLS; j++)); do
 			offset=$((i * $COLS - $COLS + j))
 
-			ln -s "../${ROOMS[$offset]}" "cave/$i/${ROOMS[$offset]}"
+			ln -s "$SCRIPT_DIR/cave/${ROOMS[$offset]}" "cave/$i/${ROOMS[$offset]}"
 		done
 	done
 }
 
 # returns a random number of an empty room
-random_empty_rooms() {
+random_empty_room() {
 	local number
 
 	while true; do
@@ -44,10 +44,14 @@ generate_hazards() {
 	local haz="$2"
 
 	for ((i=0; i<$num; i++)); do
-	 	random_empty_rooms
+	 	random_empty_room
 	 	local filename="cave/$?/$haz"
 	 	touch "$filename" && chmod +x "$filename"
 	done
+}
+
+on_exit() {
+	rm -r "$SCRIPT_DIR/cave/"
 }
 
 main() {
@@ -56,15 +60,16 @@ main() {
 
 	generate_rooms
 
-	generate_hazards $NUM_BATS bat
-	generate_hazards $NUM_PITS pit
-	generate_hazards 1 wumpus
+	generate_hazards $NUM_BATS BAT
+	generate_hazards $NUM_PITS PIT
+	generate_hazards 1 WUMPUS
 
 	# puts the player in a random room
-	random_empty_rooms
+	random_empty_room
 	cd "cave/$?"
 
 	/bin/bash --rcfile <(awk '/subshell$/{p=1}p{print}' "$SCRIPT_DIR/${BASH_SOURCE[0]}")
+	trap on_exit EXIT
 }
 
 main
@@ -79,47 +84,64 @@ end() {
 	exit
 }
 
-on_before_command() {
-	local cmd=($BASH_COMMAND)
-
-	if [ "${cmd[0]}" = cd ]; then
-		cd "${cmd[1]}" &> /dev/null
-
-		if [ $? -eq 0 ]; then
-			export HOME="$(/bin/pwd)"
-			local n
-
-			while read n; do
-				case "$n" in
-					*bat) ;;
-					*wumpus) end 'Wumpus got you!' ;;
-					*pit) end 'Yyyiiieeee... Feel in pit' ;;
-				esac
-			done < <(/bin/ls -1)
-
-			cd - &> /dev/null
-		fi
-	fi
-}
-
 prompt() {
 	local hazs=()
 	local n
 
 	while read n; do
 		case "$n" in
-			*bat) hazs+=(noise);;
-			*pit) hazs+=(draft);;
-			*wumpus) hazs+=(smell);;
+			*BAT) hazs+=(NOISE);;
+			*PIT) hazs+=(DRAFT);;
+			*WUMPUS) hazs+=(SMELL);;
 		esac
 	done < <(/usr/bin/find -L . -maxdepth 2 -type f | /usr/bin/awk -F/ '!v[$NF]++{print}')
 
-	printf "%s " $(/usr/bin/basename $(/bin/pwd))
+	printf "%s " $(/usr/bin/basename "$(/bin/realpath)")
 	if [ ${#hazs[@]} -gt 0 ]; then
 		echo -n "(${hazs[@]})" | /usr/bin/sed 's/ /, /g'
 	fi
 
 	echo '> '
+}
+
+bat() {
+	echo 'SUPER BAT SNATCH! ELSEWHEREVILLE FOR YOU!'
+
+	local path="$(/usr/bin/dirname "$(/bin/realpath)")"
+	local except=( $(/usr/bin/find "$path" -type f | /usr/bin/awk -F/ '{print$(NF-1)}') )
+
+	while true; do
+		local number=$((RANDOM % 20 + 1))
+		[[ " ${except[@]} " =~ " $number " ]] || break
+	done
+
+	command cd "$path/$number"
+}
+
+cd() {
+	local room="$1"
+	if [ "$room" -eq "$room" ] 2>/dev/null; then
+		command cd -- "$room" &> /dev/null
+
+		if [ $? -eq 0 ]; then
+			local n
+
+			while read n; do
+				case "$n" in
+					*BAT) bat ;;
+					*WUMPUS) end 'WUMPUS GOT YOU!' ;;
+					*PIT) end 'YYYIIIEEEE... FEEL IN PIT' ;;
+				esac
+			done < <(/bin/ls -1)
+
+			export HOME="$(/bin/realpath)"
+			export OLDPWD="$HOME"
+			return
+		fi
+	fi
+
+	echo "NOT POSSIBLE - $1"
+	return 1
 }
 
 rm() {
@@ -133,24 +155,24 @@ rm() {
 
 		for folder in "${@:0:5}"; do
 			if [ $player_room -eq $folder ]; then
-				end 'Ouch! Arrow got you!'
+				end 'OUCH! ARROW GOT YOU!'
 			fi
 
 			path="$path/$folder"
 
 			if [ -d "$path" ]; then
-				/usr/bin/find "$path/" -type f -not -name pit -delete -print |
-				/usr/bin/grep -Fq wumpus && end 'Aha! You go the Wumpus!'
+				/usr/bin/find "$path/" -type f -not -name PIT -delete -print |
+				/usr/bin/grep -Fq WUMPUS && end 'AHA! YOU GO THE WUMPUS!'
 			else
 				random_room=$((RANDOM % 20 + 1))
 
 				if [ $player_room -eq $random_room ]; then
-					end 'Ouch! Arrow got you!'
+					end 'OUCH! ARROW GOT YOU!'
 				fi
 			fi
 		done
 	else
-		end 'The arrows are out, Wumpus got you!'
+		end 'THE ARROWS ARE OUT, WUMPUS GOT YOU!'
 	fi
 }
 
@@ -163,8 +185,6 @@ export PS2=
 export PATH=
 
 alias ls='/bin/ls --color #'
-alias pwd='/usr/bin/basename "$(/bin/pwd)"'
+alias pwd='/usr/bin/basename "$(/bin/realpath)"'
 alias alias=''
 alias set=''
-
-trap on_before_command DEBUG
