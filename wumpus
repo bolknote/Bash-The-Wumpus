@@ -204,7 +204,7 @@ rm() {
 		let 'NUM_ARROWS--'
 
 		for folder in "${@:0:5}"; do
-			if [ $player_room -eq $folder ]; then
+			if [ $player_room -eq $folder ] 2>/dev/null; then
 				end 'OUCH! ARROW GOT YOU!'
 			fi
 
