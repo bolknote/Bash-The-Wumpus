@@ -118,14 +118,16 @@ WHAT A DODECAHEDRON IS, ASK SOMEONE)
 
 HELP
 
-	/bin/bash --rcfile <(/usr/bin/awk '/subshell$/{p=1}p{print}' "$SCRIPT_DIR/wumpus")
+	WUMPUS_START=1 /bin/bash --rcfile "$SCRIPT_DIR/wumpus"
 	trap on_exit EXIT
 }
 
-main
-exit
+if [ ! "$WUMPUS_START" ]; then
+	main
+	exit
+fi
 
-# (don't modify this comment) rcfile for subshell
+# rcfile for subshell
 
 NUM_ARROWS=5
 
